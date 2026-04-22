@@ -19,7 +19,7 @@ public class App {
             while (resKursi.next()){
                 System.out.println("\n" + resKursi.getInt("ID") + " - " + resKursi.getString("EMRI_KURSIT") + " - " + resKursi.getString("KOHEZGJATJA") + " - " + resKursi.getDate("CREATION_DATE")+ " - " + resKursi.getDate("UPDATE_DATE")+ " - " + resKursi.getString("PROGRAMMING_LANGUAGE"));
             }
-
+            //new commit
             ResultSet resBridge = statement1.executeQuery("SELECT * FROM STUDENT_KURSI");
             while (resBridge.next()){
                 System.out.println(resBridge.getInt("STUDENT_ID") + " - " + resBridge.getInt("KURSI_ID") + " - " + resBridge.getDate("REGISTRATION_DT"));
