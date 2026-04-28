@@ -1,49 +1,207 @@
 package org.example;
 
 import java.sql.*;
-import java.util.Properties;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class App {
-    public static void main( String[] args ) {
-        String url = "jdbc:postgresql://localhost:5432/postgres";
-        final Properties props = new Properties();
-        String user = "postgres";
-        String password = "Aa14942725";
-        try (Connection con = DriverManager.getConnection(url, user, password)) {
-            Statement statement1 = con.createStatement();
-            System.out.println("-----Student-----");
-            ResultSet resTable1 = statement1.executeQuery("SELECT * FROM STUDENT");
-            while (resTable1.next()){
-                System.out.println(resTable1.getInt("ID") + " - " + resTable1.getString("EMRI") + " - " + resTable1.getString("EMAIL") + " - " + resTable1.getDate("BIRTHDATE")+ " - " + resTable1.getString("NR_TELEFONIT")+ " - " + resTable1.getInt("PIKE"));
-            }
-            System.out.println("\n----KURSI-------");
-            ResultSet resKursi = statement1.executeQuery("SELECT * FROM KURSI");
-            while (resKursi.next()){
-                System.out.println(resKursi.getInt("ID") + " - " + resKursi.getString("EMRI_KURSIT") + " - " + resKursi.getString("KOHEZGJATJA") + " - " + resKursi.getDate("CREATION_DATE")+ " - " + resKursi.getDate("UPDATE_DATE")+ " - " + resKursi.getString("PROGRAMMING_LANGUAGE"));
-            }
-            //new commit
-            ResultSet resBridge = statement1.executeQuery("SELECT * FROM STUDENT_KURSI");
-            while (resBridge.next()){
-                System.out.println(resBridge.getInt("STUDENT_ID") + " - " + resBridge.getInt("KURSI_ID") + " - " + resBridge.getDate("REGISTRATION_DT"));
-            }
-            System.out.println("\n----------------------");
-            ResultSet resStudent = statement1.executeQuery("SELECT * FROM STUDENT WHERE PIKE> 10");
-            while (resStudent.next()){
-                System.out.println(resStudent.getInt("ID") + " - " + resStudent.getString("EMRI") + " - " + resStudent.getString("EMAIL") + " - " + resStudent.getDate("BIRTHDATE")+ " - " + resStudent.getString("NR_TELEFONIT")+ " - " + resStudent.getInt("PIKE"));
-            }
 
-            int insertRow = statement1.executeUpdate("INSERT INTO STUDENT (EMRI, EMAIL, BIRTHDATE, NR_TELEFONIT, PIKE)" +
-                    "VALUES ('ANNA', 'anna@gmail.com', '2000-05-10', '0691111111', 90)");
-            System.out.println("\n" + insertRow + " Values inserted");
+    public static void main(String[] args) {
 
-            int updatePike = statement1.executeUpdate("UPDATE STUDENT SET PIKE = 50 WHERE ID = 9");
-            System.out.println("\n" + updatePike + " Value updated");
+        DBConnection db = new DBConnection(
+                "jdbc:postgresql://localhost:5432/postgres",
+                "postgres",
+                "Aa14942725"
+        );
 
-            int rowDelete = statement1.executeUpdate("DELETE FROM STUDENT WHERE ID = 33");
-            System.out.println("\n" + rowDelete + " Row 33 deleted");
+        Map<String, String> koloneTip = new LinkedHashMap<>();
+        koloneTip.put("D_ID", "SERIAL PRIMARY KEY");
+        koloneTip.put("D_EMRI", "VARCHAR(50)");
+        koloneTip.put("D_EMAIL", "VARCHAR(100)");
+        koloneTip.put("D_TEL", "VARCHAR(20)");
 
-        } catch(SQLException e) {
+        createTable(db, koloneTip, "DEPARTMENT");
+
+        Student student = new Student(null, "Bora", "bora@gmail.com", "2001-05-10", "0691111111", 95);
+
+        insertStudent(db, student);
+
+        getStudentById(db, 1);
+
+        Student updatedStudent = new Student(5, "Ana", "ana@gmail.com", "2000-03-15", "0692222222", 80);
+
+        updateStudentById(db, 5, updatedStudent);
+
+        deleteStudentById(db, 1);
+
+        dropTable(db, "DEPARTMENT");
+    }
+
+    public static void createTable(DBConnection db, Map<String, String> koloneTip, String tableName) {
+        StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
+        sql.append(tableName).append(" (");
+
+        int count = 0;
+        for (Map.Entry<String, String> entry : koloneTip.entrySet()) {
+            sql.append(entry.getKey()).append(" ").append(entry.getValue());
+
+            count++;
+            if (count < koloneTip.size()) {
+                sql.append(", ");
+            }
+        }
+
+        sql.append(")");
+
+        try (Connection con = db.connect();
+             Statement st = con.createStatement()) {
+
+            st.executeUpdate(sql.toString());
+            System.out.println("Table created successfully.");
+
+        } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    public static void dropTable(DBConnection db, String tableName) {
+        String sql = "DROP TABLE IF EXISTS " + tableName;
+
+        try (Connection con = db.connect();
+             Statement st = con.createStatement()) {
+
+            st.executeUpdate(sql);
+            System.out.println("Table deleted successfully.");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static int insertStudent(DBConnection db, Student student) {
+        String sql = "INSERT INTO STUDENT (EMRI, EMAIL, BIRTHDATE, NR_TELEFONIT, PIKE) VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection con = db.connect();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, student.getEmri());
+            ps.setString(2, student.getEmail());
+            ps.setDate(3, Date.valueOf(student.getBirthdate()));
+            ps.setString(4, student.getNrTelefonit());
+            ps.setInt(5, student.getPike());
+
+            return ps.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public static void getStudentById(DBConnection db, Integer id) {
+        if (id == null) {
+            System.out.println("ID cannot be null.");
+            return;
+        }
+
+        String sql = "SELECT * FROM STUDENT WHERE ID = ?";
+
+        try (Connection con = db.connect();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                System.out.println(
+                        rs.getInt("ID") + " - " +
+                                rs.getString("EMRI") + " - " +
+                                rs.getString("EMAIL") + " - " +
+                                rs.getDate("BIRTHDATE") + " - " +
+                                rs.getString("NR_TELEFONIT") + " - " +
+                                rs.getInt("PIKE")
+                );
+            } else {
+                System.out.println("Student with ID " + id + " does not exist.");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static int updateStudentById(DBConnection db, Integer id, Student student) {
+        if (id == null) {
+            System.out.println("ID cannot be null.");
+            return 0;
+        }
+
+        if (!studentExists(db, id)) {
+            System.out.println("Student with ID " + id + " does not exist.");
+            return 0;
+        }
+
+        String sql = "UPDATE STUDENT SET EMRI = ?, EMAIL = ?, BIRTHDATE = ?, NR_TELEFONIT = ?, PIKE = ? WHERE ID = ?";
+
+        try (Connection con = db.connect();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, student.getEmri());
+            ps.setString(2, student.getEmail());
+            ps.setDate(3, Date.valueOf(student.getBirthdate()));
+            ps.setString(4, student.getNrTelefonit());
+            ps.setInt(5, student.getPike());
+            ps.setInt(6, id);
+
+            return ps.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public static int deleteStudentById(DBConnection db, Integer id) {
+        if (id == null) {
+            System.out.println("ID cannot be null.");
+            return 0;
+        }
+
+        if (!studentExists(db, id)) {
+            System.out.println("Student with ID " + id + " does not exist.");
+            return 0;
+        }
+
+        String sql = "DELETE FROM STUDENT WHERE ID = ?";
+
+        try (Connection con = db.connect();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            return ps.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public static boolean studentExists(DBConnection db, Integer id) {
+        String sql = "SELECT ID FROM STUDENT WHERE ID = ?";
+
+        try (Connection con = db.connect();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+
+            ResultSet rs = ps.executeQuery();
+
+            return rs.next();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 }
